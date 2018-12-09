@@ -1,0 +1,11 @@
+{
+  "name": "bbs-back-end",
+  "version": "1.0.0",
+  "description": "论坛的后端",
+  "repository": "https://github.com/Qpumpkin/bbs-back-end.git",
+  "author": "qpumpkin",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.16.4"
+  }
+}
