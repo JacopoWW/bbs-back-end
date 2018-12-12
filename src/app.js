@@ -1,6 +1,5 @@
 const express = require('express')
 const path = require('path')
-const fs = require('fs')
 const bodyParser = require('body-parser')
 const sqlite = require('sqlite')
 const dbPromise = sqlite.open('./bbs.db', { Promise })
@@ -51,44 +50,50 @@ app.use((req, res, next) => {
   console.log(req.method)
   next()
 })
-
-
-app.get('/article', async (req, res) => {
-  console.log(req)
-  res.send(articleList)
-})
-app.post('/article', async (req, res) => {
-  console.log(req.method, req.body)
-  const {title, content} =  req.body
-  await db.run('INSERT INTO articles (title, content, date) VALUES (?,?,?)', title, content, Date.now())
-  const articles = await db.get('SELECT * FROM articles')
-  console.log(articles)
-  // const data = {
-  //   id: articleList.length,
-  //   title,
-  //   content,
-  //   date: Date.now(),
-  //   userInfo: {
-  //     avatar: 'http://localhost:3001/static/avatar.png',
-  //     nickName: '小南瓜',
-  //   },
-  // }
-  // articleList.push(data)
-  res.send('提交成功！')
-})
-// 注册模块
-app.route('/register')
-  .post(async (req, res, next) => {
-    console.log(req.body)
-    const user = await db.get('SELECT * FROM users WHERE name=?', req.body.username)
-    console.log(user)
-    if (user) {
-      res.end('this username has been registered')
-    } else {
-      await db.run('INSERT INTO users (name, password) VALUES (?,?)', req.body.username, req.body.password)
-      res.end('register success!')
+// 文章路由
+const article = express.Router()
+app.use('/article', article)
+article.get('/', async (req, res) => {
+  const datas = await db.all('SELECT * FROM articles')
+  datas.forEach(it => {
+    it.userInfo = {
+      avatar: 'http://localhost:3001/static/avatar.png',
+      name: '小南瓜'
     }
-  })
+  });
+    
+  res.send(datas);
+  console.log(datas)
+})
+article.post('/', async (req, res) => {
+  const {title, content} =  req.body
+  console.log(req.body)
+  await db.run('INSERT INTO articles (title, content, date) VALUES (?,?,?)', title, content, Date.now())
+  res.send('提交成功！')
+  // console.log(await db.get('SELECT * FROM articles'))
+})
+
+
+// 用户路由
+const auth = express.Router()
+app.use('/auth', auth)
+auth.post('/register', async (req, res) => {
+  console.log(req.body)
+  const { username, password } = req.body
+  const user = await db.get('SELECT * FROM users WHERE name=?', username)
+  // console.log(user)
+  if (user) {
+    res.send('this username has been registered')
+  } else {
+    await db.run('INSERT INTO users (name, password) VALUES (?,?)', username, password)
+    res.send('register success!')
+  }
+})
+auth.post('/login', async (req, res) => {
+  console.log(req.body)
+  const { username, password } = req.body
+  res.send('login success!')
+})
 
 ;
 (async function () {
