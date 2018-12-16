@@ -65,6 +65,18 @@ article.get('/', async (req, res) => {
   res.send(datas);
   console.log(datas)
 })
+article.get('/:id', async (req, res) => {
+  const article = await db.get('SELECT articles.*, name FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', req.params.id)
+  if (article) {
+    const comments = await db.all('SELECT * FROM comments WHERE articleId=?', req.params.id)
+    res.send({
+      article,
+      comments,
+    })
+  } else {
+    res.send('没有找到文章')
+  }
+})
 article.post('/', async (req, res) => {
   const {title, content} =  req.body
   console.log(req.body)
@@ -74,7 +86,7 @@ article.post('/', async (req, res) => {
 })
 
 
-// 用户路由
+// 注册登录模块
 const auth = express.Router()
 app.use('/auth', auth)
 auth.post('/register', async (req, res) => {
@@ -83,7 +95,7 @@ auth.post('/register', async (req, res) => {
   const user = await db.get('SELECT * FROM users WHERE name=?', username)
   // console.log(user)
   if (user) {
-    res.send('this username has been registered')
+    res.status(403).send({message: '账号已经被注册!', type: 'username'})
   } else {
     await db.run('INSERT INTO users (name, password) VALUES (?,?)', username, password)
     res.send('register success!')
@@ -91,8 +103,48 @@ auth.post('/register', async (req, res) => {
 })
 auth.post('/login', async (req, res) => {
   console.log(req.body)
-  const { username, password } = req.body
-  res.send('login success!')
+  const { username, password } = req.body;
+  const user = await db.get('SELECT * FROM users WHERE name=? AND password=?', username, password)
+  if (user) {
+    res.status(200).send({ message: 'login success!', user: user })
+  } else {
+    res.status(403).send({ message: '密码错误!', type: 'password'})
+  }
+})
+
+// 评论模块
+const comments = express.Router()
+app.use('/comment', comments)
+comments.post('/', async (req, res) => {
+  console.log(req.body)
+  const { userId, content, date, articleId } = req.body
+  await db.run(`
+    INSERT INTO comments (userId, content, date, articleId)
+    VALUES (?,?,?,?)
+`, userId, content, date, articleId)
+  console.log('保存!')
+  res.send('已成功发送!');
+})
+
+
+// 获取用户信息模块
+const userInfo = express.Router()
+app.use('/user', userInfo)
+userInfo.get('/:userId', async (req, res, next) => {
+  console.log(req.params)
+  const user = await db.get('SELECT * FROM users WHERE id=?', req.params.userId)
+  if (user) {
+    console.log('进到这里了')
+    const userArticles = await db.all('SELECT * FROM articles WHERE userId=?', req.params.userId)
+    const userComments = await db.all('SELECT * FROM comments WHERE userId=?', req.params.userId)
+    res.send({
+      user,
+      articles: userArticles,
+      comments: userComments,
+    })
+  } else {
+    res.send('找不到该用户!')
+  }
 })
 
 ;
