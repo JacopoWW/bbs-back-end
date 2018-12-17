@@ -54,21 +54,22 @@ app.use((req, res, next) => {
 const article = express.Router()
 app.use('/article', article)
 article.get('/', async (req, res) => {
-  const datas = await db.all('SELECT * FROM articles')
-  datas.forEach(it => {
+  const articles = await db.all('SELECT * FROM articles')
+  articles.forEach(it => {
     it.userInfo = {
       avatar: 'http://localhost:3001/static/avatar.png',
       name: '小南瓜'
     }
   });
-    
-  res.send(datas);
-  console.log(datas)
+  res.send(articles);
+  console.log(articles)
 })
 article.get('/:id', async (req, res) => {
-  const article = await db.get('SELECT articles.*, name FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', req.params.id)
+  const { id } = req.params
+  const article = await db.get('SELECT articles.*, name FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', id)
   if (article) {
-    const comments = await db.all('SELECT * FROM comments WHERE articleId=?', req.params.id)
+    const comments = await db.all('SELECT * FROM comments WHERE articleId=?', Number(id)) // 必须要用Number类型不然找不到的，你可以思考一下为什么
+    console.log(comments)
     res.send({
       article,
       comments,
@@ -78,11 +79,27 @@ article.get('/:id', async (req, res) => {
   }
 })
 article.post('/', async (req, res) => {
-  const {title, content} =  req.body
+  const {title, content, userId } =  req.body
   console.log(req.body)
-  await db.run('INSERT INTO articles (title, content, date) VALUES (?,?,?)', title, content, Date.now())
-  res.send('提交成功！')
-  // console.log(await db.get('SELECT * FROM articles'))
+  const user = db.get('SELECT * FROM users WHERE id=?', userId)
+  if (user) {
+    try {
+      await db.run('INSERT INTO articles (title, content, date, userId) VALUES (?,?,?,?)', title, content, Date.now(), userId)
+      res.send({ message: '提交成功！' })
+      // console.log(await db.get('SELECT * FROM articles'))
+    } catch(e) {
+      console.log(e)
+      res.status(400).send({
+        message: '提交失败',
+        type: 'notFound',
+      })
+    }
+  } else {
+    res.status(404).send({
+      message: '不存在的用户Id',
+      type: 'notFound'
+    })
+  }
 })
 
 
@@ -98,15 +115,21 @@ auth.post('/register', async (req, res) => {
     res.status(403).send({message: '账号已经被注册!', type: 'username'})
   } else {
     await db.run('INSERT INTO users (name, password) VALUES (?,?)', username, password)
-    res.send('register success!')
+    // 别忘了用异步
+    const userInfo = await db.get('SELECT name, id FROM users WHERE name=?', username)
+    console.log(userInfo)
+    res.send({
+      message: '注册成功!',
+      userInfo,
+    })
   }
 })
 auth.post('/login', async (req, res) => {
   console.log(req.body)
   const { username, password } = req.body;
-  const user = await db.get('SELECT * FROM users WHERE name=? AND password=?', username, password)
-  if (user) {
-    res.status(200).send({ message: 'login success!', user: user })
+  const userInfo = await db.get('SELECT name, id FROM users WHERE name=? AND password=?', username, password)
+  if (userInfo) {
+    res.send({ message: '登录成功', userInfo })
   } else {
     res.status(403).send({ message: '密码错误!', type: 'password'})
   }
