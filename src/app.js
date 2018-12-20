@@ -54,19 +54,36 @@ app.use((req, res, next) => {
 const article = express.Router()
 app.use('/article', article)
 article.get('/', async (req, res) => {
-  const articles = await db.all('SELECT * FROM articles')
-  articles.forEach(it => {
-    it.userInfo = {
-      avatar: 'http://localhost:3001/static/avatar.png',
-      name: '小南瓜'
-    }
-  });
+
+  const articles = [];
+  await db.each(
+    'SELECT articles.*, avatar, name from articles JOIN users ON articles.userId=users.id',
+    (err, row) => articles.push({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      date: row.date,
+      userInfo: {
+        avatar: row.avatar,
+        name: row.name,
+      }
+    }),
+  )
   res.send(articles);
   console.log(articles)
 })
 article.get('/:id', async (req, res) => {
   const { id } = req.params
-  const article = await db.get('SELECT articles.*, name FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', id)
+  // db.prepare(
+  //   `SELECT articles.*, name FROM articles
+  //   JOIN users ON articles.userId=users.id
+  //   WHERE articles.id=?`, id,
+  //   (err, row) => {
+  //     console.log('进到这里')
+  //     res.send(row);
+  //   }
+  // )
+  const article = await db.get('SELECT articles.*, name, avatar FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', id)
   if (article) {
     const comments = await db.all('SELECT * FROM comments WHERE articleId=?', Number(id)) // 必须要用Number类型不然找不到的，你可以思考一下为什么
     console.log(comments)
