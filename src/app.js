@@ -83,9 +83,18 @@ article.get('/:id', async (req, res) => {
   //     res.send(row);
   //   }
   // )
-  const article = await db.get('SELECT articles.*, name, avatar FROM articles JOIN users ON articles.userId=users.id WHERE articles.id=? ', id)
+  const article = await db.get(`
+    SELECT articles.*, name, avatar
+    FROM articles JOIN users
+    ON articles.userId=users.id WHERE articles.id=? `
+    , id)
   if (article) {
-    const comments = await db.all('SELECT * FROM comments WHERE articleId=?', Number(id)) // 必须要用Number类型不然找不到的，你可以思考一下为什么
+    const comments = await db.all(`
+      SELECT comments.*, name, avatar
+      FROM comments JOIN users
+      ON comments.userId=users.id
+      WHERE comments.articleId=?`
+      , Number(id)) // 必须要用Number类型不然找不到的，你可以思考一下为什么
     console.log(comments)
     res.send({
       article,
@@ -157,11 +166,11 @@ const comments = express.Router()
 app.use('/comment', comments)
 comments.post('/', async (req, res) => {
   console.log(req.body)
-  const { userId, content, date, articleId } = req.body
+  const { userId, content, articleId } = req.body
   await db.run(`
     INSERT INTO comments (userId, content, date, articleId)
     VALUES (?,?,?,?)
-`, userId, content, date, articleId)
+`, userId, content, Date.now(), articleId)
   console.log('保存!')
   res.send('已成功发送!');
 })
