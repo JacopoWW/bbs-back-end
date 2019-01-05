@@ -42,8 +42,8 @@ app.use(bodyParser.json())
 app.use('/static', express.static('./static'))
 app.all('*', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000')
-  res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type")
-  res.header("Content-Type", "application/json;charset=utf-8")
+  res.header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, mode')
+  res.header('Content-Type', 'application/json;charset=utf-8')
   next()
 })
 app.use((req, res, next) => {
